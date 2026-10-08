@@ -1,0 +1,909 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Panel Admin — Token APK Pro</title>
+<style>
+  :root { --bg:#0a0e1a; --card:#111827; --border:#1f2937; --text:#e2e8f0; --text-dim:#94a3b8; --text-mute:#64748b; --input-bg:#0a0e1a; --accent:#0ea5e9; --accent-dark:#0284c7; }
+  [data-theme="light"] { --bg:#f1f5f9; --card:#ffffff; --border:#e2e8f0; --text:#0f172a; --text-dim:#475569; --text-mute:#94a3b8; --input-bg:#f8fafc; --accent:#0284c7; --accent-dark:#0369a1; }
+  * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+  body { margin: 0; background: var(--bg); color: var(--text); min-height: 100vh; transition: 0.3s; }
+
+  #loginPage { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; }
+  .login-box { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 32px 24px; width: 100%; max-width: 400px; }
+  .login-box h1 { font-size: 22px; margin: 0 0 8px; color: var(--accent); }
+  .login-box p { font-size: 13px; color: var(--text-dim); margin: 0 0 24px; }
+  .login-box input { width: 100%; padding: 12px 14px; margin-bottom: 12px; background: var(--input-bg); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 14px; outline: none; }
+  .login-box input:focus { border-color: var(--accent); }
+  .login-box button { width: 100%; padding: 12px; background: var(--accent); color: #fff; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; }
+  .login-box button:disabled { opacity: 0.5; cursor: not-allowed; }
+  #loginError { color: #f87171; font-size: 13px; margin-top: 12px; text-align: center; }
+
+  #dashboardPage { display: none; padding: 16px; max-width: 1100px; margin: 0 auto; padding-bottom: 40px; }
+  .topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
+  .topbar h1 { font-size: 18px; margin: 0; color: var(--accent); }
+  .topbar .user { font-size: 12px; color: var(--text-dim); }
+  .topbar-actions { display: flex; gap: 6px; align-items: center; }
+  .topbar-actions button { border: none; border-radius: 6px; font-size: 12px; cursor: pointer; font-weight: 600; padding: 8px 12px; }
+  .theme-btn { background: var(--border); color: var(--text); }
+  .logout-btn { background: #ef4444; color: #fff; }
+
+  .tabs { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+  .tab { padding: 8px 14px; background: var(--card); border: 1px solid var(--border); border-radius: 8px; font-size: 13px; cursor: pointer; color: var(--text-dim); }
+  .tab.active { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 600; }
+
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+  .card h2 { font-size: 15px; margin: 0 0 12px; color: var(--accent); display: flex; justify-content: space-between; align-items: center; }
+  .count-badge { background: var(--accent); color: #fff; font-size: 11px; padding: 2px 8px; border-radius: 10px; margin-left: 8px; }
+
+  .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; }
+  .stat-box { background: var(--input-bg); border: 1px solid var(--border); border-radius: 10px; padding: 12px; text-align: center; }
+  .stat-box .num { font-size: 26px; font-weight: 700; color: var(--text); margin: 4px 0; }
+  .stat-box .lbl { font-size: 11px; color: var(--text-dim); }
+  .stat-box.active .num { color: #4ade80; }
+  .stat-box.expired .num { color: #f87171; }
+  .stat-box.locked .num { color: #fbbf24; }
+  .stat-box.total .num { color: #38bdf8; }
+
+  .toolbar { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+  .toolbar input, .toolbar select { background: var(--input-bg); border: 1px solid var(--border); border-radius: 8px; padding: 9px 12px; color: var(--text); font-size: 13px; outline: none; }
+  .toolbar input { flex: 1; min-width: 140px; }
+  .toolbar input:focus, .toolbar select:focus { border-color: var(--accent); }
+  .btn-toolbar { padding: 9px 14px; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; color: #fff; }
+
+  .user-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 12px; }
+  .user-card { background: var(--input-bg); border: 1px solid var(--border); border-radius: 10px; padding: 14px; }
+  .user-card.locked { border-color: #ef4444; opacity: 0.85; }
+  .user-card .head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .user-card .name { font-weight: 700; font-size: 15px; color: var(--text); }
+  .user-card .badge { font-size: 10px; padding: 3px 8px; border-radius: 10px; font-weight: 600; }
+  .badge.active { background: rgba(34,197,94,0.15); color: #4ade80; }
+  .badge.expired { background: rgba(239,68,68,0.15); color: #f87171; }
+  .badge.locked { background: rgba(245,158,11,0.15); color: #fbbf24; }
+  .user-card .info { font-size: 12px; color: var(--text-dim); line-height: 1.9; }
+  .user-card .info b { color: var(--text); font-weight: 500; }
+  .user-card .actions { display: flex; gap: 6px; margin-top: 12px; flex-wrap: wrap; }
+  .user-card .actions button { flex: 1; min-width: 36px; padding: 7px; border: none; border-radius: 6px; font-size: 12px; cursor: pointer; font-weight: 600; color: #fff; }
+  .btn-edit { background: #0ea5e9; } .btn-del { background: #ef4444; } .btn-lock { background: #f59e0b; }
+  .btn-unlock { background: #10b981; } .btn-msg { background: #8b5cf6; } .btn-reset { background: #64748b; }
+
+  .form-group { margin-bottom: 14px; }
+  .form-group label { display: block; font-size: 12px; color: var(--text-dim); margin-bottom: 6px; }
+  .form-group input, .form-group select, .form-group textarea { width: 100%; background: var(--input-bg); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; color: var(--text); font-size: 13px; outline: none; font-family: inherit; }
+  .form-group input:focus, .form-group textarea:focus, .form-group select:focus { border-color: var(--accent); }
+  .form-group textarea { resize: vertical; min-height: 80px; }
+  .btn-save { width: 100%; padding: 12px; background: var(--accent); color: #fff; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; }
+  .btn-save:hover { background: var(--accent-dark); }
+
+  .modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 100; align-items: center; justify-content: center; padding: 20px; }
+  .modal-bg.show { display: flex; }
+  .modal { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; width: 100%; max-width: 480px; max-height: 90vh; overflow-y: auto; }
+  .modal h3 { margin: 0 0 16px; color: var(--accent); font-size: 16px; }
+  .modal .modal-actions { display: flex; gap: 8px; margin-top: 16px; }
+  .modal .modal-actions button { flex: 1; padding: 10px; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; }
+  .btn-cancel { background: var(--border); color: var(--text); }
+
+  .hwid-list { background: var(--input-bg); border: 1px solid var(--border); border-radius: 8px; padding: 10px; margin-top: 6px; max-height: 160px; overflow-y: auto; }
+  .hwid-item { display: flex; justify-content: space-between; align-items: center; font-size: 11px; padding: 6px 0; border-bottom: 1px solid var(--border); gap: 6px; }
+  .hwid-item:last-child { border-bottom: none; }
+  .hwid-item span { color: var(--text-dim); word-break: break-all; flex: 1; }
+  .hwid-item button { border: none; border-radius: 4px; padding: 3px 8px; font-size: 10px; cursor: pointer; color: #fff; }
+
+  .log-item { background: var(--input-bg); border: 1px solid var(--border); border-radius: 8px; padding: 10px; margin-bottom: 8px; font-size: 12px; }
+  .log-head { display: flex; justify-content: space-between; margin-bottom: 6px; }
+
+  #toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(100px); background: var(--accent); color: #fff; padding: 12px 20px; border-radius: 8px; font-size: 13px; font-weight: 600; opacity: 0; transition: 0.3s; z-index: 999; max-width: 90%; text-align: center; }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  #toast.error { background: #ef4444; }
+  #toast.success { background: #22c55e; }
+  .empty { color: var(--text-mute); font-size: 13px; text-align: center; padding: 20px; }
+  .live-dot { display: inline-block; width: 8px; height: 8px; background: #22c55e; border-radius: 50%; margin-right: 6px; animation: pulse 1.5s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+  .broadcast-info { background: rgba(139,92,246,0.1); border: 1px solid rgba(139,92,246,0.3); color: #c4b5fd; padding: 10px; border-radius: 8px; font-size: 12px; margin-bottom: 14px; }
+</style>
+</head>
+<body>
+
+<div id="loginPage">
+  <div class="login-box">
+    <h1>🔐 Panel Admin Pro</h1>
+    <p>Token APK Panel — Realtime Server</p>
+    <input type="email" id="username" placeholder="Email admin" autocomplete="username">
+    <input type="password" id="password" placeholder="Password" autocomplete="current-password">
+    <button id="loginBtn" onclick="doLogin()">Login</button>
+    <div id="loginError"></div>
+  </div>
+</div>
+
+<div id="dashboardPage">
+  <div class="topbar">
+    <div>
+      <h1>📊 Panel Admin Pro</h1>
+      <div class="user" id="userInfo">-</div>
+    </div>
+    <div class="topbar-actions">
+      <button class="theme-btn" onclick="toggleTheme()" id="themeBtn">🌙</button>
+      <button class="logout-btn" onclick="doLogout()">Logout</button>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" data-tab="users" onclick="switchTab(this)">👥 Users</div>
+    <div class="tab" data-tab="broadcast" onclick="switchTab(this)">📢 Broadcast</div>
+    <div class="tab" data-tab="logs" onclick="switchTab(this)">📝 Log</div>
+    <div class="tab" data-tab="admins" onclick="switchTab(this)">👑 Admin</div>
+    <div class="tab" data-tab="config" onclick="switchTab(this)">⚙️ Config</div>
+  </div>
+
+  <div class="card">
+    <h2>📊 Statistik</h2>
+    <div class="stats-grid">
+      <div class="stat-box total"><div class="lbl">Total</div><div class="num" id="statTotal">0</div></div>
+      <div class="stat-box active"><div class="lbl">Active</div><div class="num" id="statActive">0</div></div>
+      <div class="stat-box expired"><div class="lbl">Expired</div><div class="num" id="statExpired">0</div></div>
+      <div class="stat-box locked"><div class="lbl">Locked</div><div class="num" id="statLocked">0</div></div>
+    </div>
+  </div>
+
+  <div id="tab-users">
+    <div class="card">
+      <h2>
+        <span><span class="live-dot"></span>Users Realtime <span class="count-badge" id="countBadge">0</span></span>
+        <span style="font-size:11px;cursor:pointer;color:var(--text-dim)" onclick="loadUsers()">🔄 Refresh</span>
+      </h2>
+      <div class="toolbar">
+        <input type="text" id="searchInput" placeholder="🔍 Cari user..." oninput="filterUsers()">
+        <select id="filterStatus" onchange="filterUsers()">
+          <option value="all">Semua</option>
+          <option value="active">✅ Active</option>
+          <option value="expired">❌ Expired</option>
+          <option value="locked">🔒 Locked</option>
+        </select>
+        <button class="btn-toolbar" style="background:#22c55e" onclick="openAddModal()">➕ Tambah</button>
+        <button class="btn-toolbar" style="background:#8b5cf6" onclick="downloadBackup()">💾 Backup</button>
+        <button class="btn-toolbar" style="background:#f59e0b" onclick="autoPerpanjang()">⏰ Auto +30</button>
+      </div>
+      <div class="user-grid" id="userGrid"><div class="empty">⏳ Memuat...</div></div>
+    </div>
+  </div>
+
+  <div id="tab-broadcast" style="display:none">
+    <div class="card">
+      <h2>📢 Kirim Pesan</h2>
+      <div class="broadcast-info">💡 Pesan ini tampil di APK user. Bisa ke <b>semua user</b> atau <b>user tertentu</b>.</div>
+      <div class="form-group">
+        <label>Kirim Ke</label>
+        <select id="msgTarget" onchange="updateMsgTarget()">
+          <option value="all">🌐 Semua User</option>
+          <option value="one">👤 User Tertentu</option>
+        </select>
+      </div>
+      <div class="form-group" id="targetUserGroup" style="display:none">
+        <label>Pilih User</label>
+        <select id="targetUser"></select>
+      </div>
+      <div class="form-group">
+        <label>Tipe Pesan</label>
+        <select id="msgType">
+          <option value="maintenance">🔧 Maintenance</option>
+          <option value="info">ℹ️ Info</option>
+          <option value="warning">⚠️ Peringatan</option>
+          <option value="update">🔄 Update Tersedia</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Isi Pesan</label>
+        <textarea id="msgContent" placeholder="Contoh: Server sedang maintenance..."></textarea>
+      </div>
+      <button class="btn-save" onclick="sendBroadcast()">📤 Kirim Pesan</button>
+    </div>
+    <div class="card">
+      <h2>📜 Riwayat Pesan <span style="font-size:11px;cursor:pointer;color:var(--text-dim)" onclick="loadMessages()">🔄</span></h2>
+      <div id="msgHistory"><div class="empty">Belum ada pesan</div></div>
+    </div>
+  </div>
+
+  <div id="tab-logs" style="display:none">
+    <div class="card">
+      <h2>📝 Log Aktivitas <span class="count-badge" id="logCount">0</span>
+        <span style="font-size:11px;cursor:pointer;color:var(--text-dim)" onclick="loadLogs()">🔄</span>
+      </h2>
+      <div style="margin-bottom:10px;display:flex;gap:6px;flex-wrap:wrap;">
+        <button class="btn-toolbar" style="background:var(--border);color:var(--text);font-size:11px;padding:6px 10px;" onclick="filterLogs('all')">Semua</button>
+        <button class="btn-toolbar" style="background:var(--border);color:var(--text);font-size:11px;padding:6px 10px;" onclick="filterLogs('login')">🔐 Login</button>
+        <button class="btn-toolbar" style="background:var(--border);color:var(--text);font-size:11px;padding:6px 10px;" onclick="filterLogs('edit')">✏️ Edit</button>
+        <button class="btn-toolbar" style="background:var(--border);color:var(--text);font-size:11px;padding:6px 10px;" onclick="filterLogs('lock')">🔒 Lock</button>
+        <button class="btn-toolbar" style="background:var(--border);color:var(--text);font-size:11px;padding:6px 10px;" onclick="filterLogs('delete')">🗑️ Hapus</button>
+      </div>
+      <div id="logList"><div class="empty">Belum ada log</div></div>
+    </div>
+  </div>
+
+  <div id="tab-admins" style="display:none">
+    <div class="card">
+      <h2>👑 Manajemen Admin <span class="count-badge" id="adminCount">0</span></h2>
+      <div class="toolbar">
+        <input type="text" id="newAdminEmail" placeholder="Email admin baru">
+        <input type="text" id="newAdminPass" placeholder="Password">
+        <button class="btn-toolbar" style="background:#22c55e" onclick="addAdmin()">➕ Tambah</button>
+      </div>
+      <div id="adminList"><div class="empty">Memuat admin...</div></div>
+    </div>
+  </div>
+
+  <div id="tab-config" style="display:none">
+    <div class="card">
+      <h2>⚙️ Config Aplikasi</h2>
+      <div class="form-group"><label>🔗 Admin URL</label><input type="text" id="cfgAdminUrl" placeholder="https://wa.me/628xxx"></div>
+      <div class="form-group"><label>📱 Nama Aplikasi</label><input type="text" id="cfgAppName" placeholder="Nama APK"></div>
+      <div class="form-group"><label>📌 Versi APK</label><input type="text" id="cfgVersion" placeholder="1.0.0"></div>
+      <div class="form-group"><label>💬 Pesan Maintenance</label><textarea id="cfgMaintenanceMsg" placeholder="Pesan maintenance"></textarea></div>
+      <div class="form-group"><label>🔧 Status Maintenance</label>
+        <select id="cfgMaintenance">
+          <option value="false">✅ Nonaktif</option>
+          <option value="true">🔧 Aktif</option>
+        </select>
+      </div>
+      <div class="form-group"><label>⏰ Auto Perpanjang (hari)</label><input type="number" id="cfgAutoExtend" value="0"></div>
+      <button class="btn-save" onclick="saveConfig()">💾 Simpan Config</button>
+    </div>
+    <div class="card">
+      <h2>📱 Preview APK</h2>
+      <div class="form-group"><label>URL Web APK</label><input type="text" id="previewUrl" placeholder="https://example.com" onchange="updatePreview()"></div>
+      <div style="background:var(--input-bg);border:1px solid var(--border);border-radius:12px;padding:20px;text-align:center;">
+        <div style="width:220px;height:400px;background:#000;border-radius:24px;margin:0 auto;border:4px solid #333;overflow:hidden;position:relative;">
+          <iframe id="previewIframe" style="width:100%;height:100%;border:none;background:#fff;" src="about:blank"></iframe>
+        </div>
+        <p style="font-size:11px;color:var(--text-dim);margin-top:10px;">Simulasi tampilan APK</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="editModal">
+  <div class="modal">
+    <h3 id="modalTitle">✏️ Edit User</h3>
+    <div class="form-group"><label>Username</label><input type="text" id="editUsername"></div>
+    <div class="form-group"><label>Password</label><input type="text" id="editPassword"></div>
+    <div class="form-group"><label>Expiry (DD/MM/YYYY)</label><input type="text" id="editExpiry" placeholder="10/10/2026"></div>
+    <div class="form-group"><label>Sisa Hari (Otomatis)</label><input type="text" id="editSisaHari" value="0" readonly style="opacity:0.7;cursor:not-allowed;"></div>
+    <div class="form-group"><label>Max Devices</label><input type="number" id="editMaxDevices" value="1" readonly></div>
+    <div class="form-group"><label>Status</label>
+      <select id="editStatus">
+        <option value="active">✅ Active</option>
+        <option value="expired">❌ Expired</option>
+        <option value="locked">🔒 Locked</option>
+      </select>
+    </div>
+    <div class="form-group" id="hwidGroup" style="display:none">
+      <label>📱 Device Terdaftar (HWID)</label>
+      <div class="hwid-list" id="hwidList"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeEditModal()">Batal</button>
+      <button class="btn-save" onclick="saveUser()">Simpan</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="msgModal">
+  <div class="modal">
+    <h3>✉️ Kirim Pesan ke <span id="msgModalUser"></span></h3>
+    <div class="form-group"><label>Tipe</label>
+      <select id="mMsgType">
+        <option value="maintenance">🔧 Maintenance</option>
+        <option value="info">ℹ️ Info</option>
+        <option value="warning">⚠️ Peringatan</option>
+        <option value="update">🔄 Update</option>
+      </select>
+    </div>
+    <div class="form-group"><label>Isi Pesan</label><textarea id="mMsgContent" placeholder="Tulis pesan..."></textarea></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeMsgModal()">Batal</button>
+      <button class="btn-save" onclick="sendMsgToUser()">Kirim</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const API_BASE = "/api";
+let token = localStorage.getItem("admin_token") || "";
+let usersCache = {}, configCache = {}, messagesCache = [], logsCache = [], adminsCache = [];
+let editingUser = null, isAddMode = false, msgTargetUser = null;
+let refreshInterval = null, lastHash = "", currentLogFilter = "all";
+
+// ===== HITUNG SISA HARI (realtime) =====
+function hitungSisaHari(expiry) {
+  if (!expiry) return 0;
+  try {
+    let targetDate;
+    if (expiry.includes("/")) {
+      const [d, m, y] = expiry.split("/").map(x => parseInt(x));
+      targetDate = new Date(y, m - 1, d);
+    } else {
+      targetDate = new Date(expiry);
+    }
+    if (isNaN(targetDate.getTime())) return 0;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    targetDate.setHours(0, 0, 0, 0);
+    const diffDays = Math.ceil((targetDate - today) / (1000 * 60 * 60 * 24));
+    return diffDays > 0 ? diffDays : 0;
+  } catch { return 0; }
+}
+
+// ===== HELPER FETCH DENGAN AUTH =====
+async function apiFetch(url, options = {}) {
+  const headers = { "Content-Type": "application/json", ...(options.headers || {}) };
+  if (token) headers["Authorization"] = "Bearer " + token;
+  const res = await fetch(url, { ...options, headers });
+  if (res.status === 401) { toast("❌ Sesi habis, login ulang", "error"); doLogout(); throw new Error("Unauthorized"); }
+  return res;
+}
+
+// ===== ANTI BRUTE FORCE =====
+const MAX_ATTEMPTS = 5, LOCKOUT_MS = 5 * 60 * 1000;
+function getAttempts() { try { return JSON.parse(localStorage.getItem("login_attempts") || "{}"); } catch { return {}; } }
+function setAttempts(a) { localStorage.setItem("login_attempts", JSON.stringify(a)); }
+function checkLockout() {
+  const a = getAttempts();
+  if (a.lockedUntil && Date.now() < a.lockedUntil) {
+    const sisa = Math.ceil((a.lockedUntil - Date.now()) / 1000);
+    return `Terlalu banyak percobaan. Coba lagi dalam ${sisa} detik.`;
+  }
+  return null;
+}
+function recordFailed() {
+  const a = getAttempts();
+  a.count = (a.count || 0) + 1;
+  if (a.count >= MAX_ATTEMPTS) { a.lockedUntil = Date.now() + LOCKOUT_MS; a.count = 0; }
+  setAttempts(a);
+}
+function clearAttempts() { localStorage.removeItem("login_attempts"); }
+
+// ===== THEME =====
+function toggleTheme() {
+  const current = document.documentElement.getAttribute("data-theme") || "dark";
+  const next = current === "dark" ? "light" : "dark";
+  document.documentElement.setAttribute("data-theme", next);
+  localStorage.setItem("theme", next);
+  document.getElementById("themeBtn").textContent = next === "dark" ? "🌙" : "☀️";
+}
+(function initTheme() {
+  const saved = localStorage.getItem("theme") || "dark";
+  document.documentElement.setAttribute("data-theme", saved);
+  document.addEventListener("DOMContentLoaded", () => {
+    const btn = document.getElementById("themeBtn");
+    if (btn) btn.textContent = saved === "dark" ? "🌙" : "☀️";
+  });
+})();
+
+function toast(msg, type = "info") {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.className = "show " + (type === "error" ? "error" : type === "success" ? "success" : "");
+  setTimeout(() => t.className = "", 2500);
+}
+
+// ===== LOGIN =====
+async function doLogin() {
+  const err = document.getElementById("loginError");
+  const lock = checkLockout();
+  if (lock) { err.textContent = "❌ " + lock; return; }
+
+  const username = document.getElementById("username").value.trim();
+  const password = document.getElementById("password").value;
+  const btn = document.getElementById("loginBtn");
+
+  if (!username || !password) { err.textContent = "Isi email & password"; return; }
+  btn.disabled = true; btn.textContent = "Memproses..."; err.textContent = "";
+
+  try {
+    const res = await fetch(`${API_BASE}/login`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password })
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.message);
+    token = data.token;
+    localStorage.setItem("admin_token", token);
+    clearAttempts();
+    showDashboard(username);
+    addLog("login", `Admin ${username} login`);
+    toast("✅ Login berhasil!", "success");
+  } catch (e) {
+    recordFailed();
+    const a = getAttempts();
+    const sisa = MAX_ATTEMPTS - (a.count || 0);
+    err.textContent = `❌ ${e.message}${sisa > 0 && sisa < MAX_ATTEMPTS ? ` (${sisa}x lagi)` : ""}`;
+    btn.disabled = false; btn.textContent = "Login";
+  }
+}
+
+function doLogout() {
+  token = ""; localStorage.removeItem("admin_token");
+  if (refreshInterval) clearInterval(refreshInterval);
+  document.getElementById("loginPage").style.display = "flex";
+  document.getElementById("dashboardPage").style.display = "none";
+  document.getElementById("password").value = "";
+}
+
+function showDashboard(username) {
+  document.getElementById("loginPage").style.display = "none";
+  document.getElementById("dashboardPage").style.display = "block";
+  document.getElementById("userInfo").textContent = "Login: " + username;
+  loadUsers(); loadConfig(); loadMessages(); loadLogs(); loadAdmins();
+  if (refreshInterval) clearInterval(refreshInterval);
+  refreshInterval = setInterval(() => { loadUsers(true); loadConfig(); }, 3000);
+}
+
+function switchTab(el) {
+  document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+  el.classList.add("active");
+  const tab = el.dataset.tab;
+  ["users", "broadcast", "logs", "admins", "config"].forEach(t => {
+    document.getElementById("tab-" + t).style.display = t === tab ? "block" : "none";
+  });
+  if (tab === "broadcast") loadMessages();
+  if (tab === "logs") loadLogs();
+  if (tab === "admins") loadAdmins();
+  if (tab === "config") loadConfig();
+}
+
+async function loadUsers(silent = false) {
+  try {
+    const res = await apiFetch(`${API_BASE}/users?action=list`);
+    const data = await res.json();
+    if (!data.success) throw new Error(data.message);
+    const newHash = JSON.stringify(data.users);
+    if (silent && newHash === lastHash) return;
+    lastHash = newHash;
+    usersCache = data.users || {};
+    document.getElementById("countBadge").textContent = Object.keys(usersCache).length;
+    updateStats();
+    filterUsers();
+    populateUserDropdown();
+  } catch (e) { console.error(e); }
+}
+
+function updateStats() {
+  const users = Object.values(usersCache);
+  document.getElementById("statTotal").textContent = users.length;
+  document.getElementById("statActive").textContent = users.filter(u => u.status === "active").length;
+  document.getElementById("statExpired").textContent = users.filter(u => u.status === "expired").length;
+  document.getElementById("statLocked").textContent = users.filter(u => u.status === "locked").length;
+}
+
+function filterUsers() {
+  const search = document.getElementById("searchInput").value.toLowerCase();
+  const filter = document.getElementById("filterStatus").value;
+  const grid = document.getElementById("userGrid");
+  grid.innerHTML = "";
+  let shown = 0;
+
+  Object.entries(usersCache).forEach(([username, data]) => {
+    if (!username.toLowerCase().includes(search)) return;
+    if (filter !== "all" && data.status !== filter) return;
+    shown++;
+    const isActive = data.status === "active";
+    const isLocked = data.status === "locked";
+    const badgeClass = isLocked ? "locked" : (isActive ? "active" : "expired");
+    const badgeText = isLocked ? "🔒 Locked" : (isActive ? "✅ Active" : "❌ Expired");
+    const hwidCount = Object.keys(data.hwids || {}).length;
+
+    grid.innerHTML += `
+      <div class="user-card ${isLocked ? 'locked' : ''}">
+        <div class="head">
+          <div class="name">👤 ${escapeHtml(username)}</div>
+          <span class="badge ${badgeClass}">${badgeText}</span>
+        </div>
+        <div class="info">
+          <div>🔑 Password: <b>${escapeHtml(data.password || "-")}</b></div>
+          <div>📅 Expiry: <b>${escapeHtml(data.expiry || "-")}</b></div>
+          <div>📱 Device: <b>${hwidCount}/${data.max_devices ?? 1}</b></div>
+          <div>⏳ Sisa: <b>${data.sisa_hari ?? "-"} hari</b></div>
+        </div>
+        <div class="actions">
+          <button class="btn-edit" onclick="openEditModal('${escapeAttr(username)}')">✏️</button>
+          <button class="${isActive ? 'btn-lock' : 'btn-unlock'}" onclick="toggleLock('${escapeAttr(username)}')">${isActive ? '🔒' : '🔓'}</button>
+          <button class="btn-msg" onclick="openMsgModal('${escapeAttr(username)}')">✉️</button>
+          <button class="btn-reset" onclick="resetDevice('${escapeAttr(username)}')">🔄</button>
+          <button class="btn-del" onclick="deleteUser('${escapeAttr(username)}')">🗑️</button>
+        </div>
+      </div>`;
+  });
+  if (shown === 0) grid.innerHTML = '<div class="empty" style="grid-column:1/-1">🔍 Tidak ada user</div>';
+}
+
+function populateUserDropdown() {
+  const sel = document.getElementById("targetUser");
+  if (!sel) return;
+  const current = sel.value;
+  sel.innerHTML = '<option value="">-- Pilih User --</option>';
+  Object.keys(usersCache).forEach(u => { sel.innerHTML += `<option value="${escapeAttr(u)}">${escapeHtml(u)}</option>`; });
+  if (current) sel.value = current;
+}
+
+function openEditModal(username) {
+  const data = usersCache[username];
+  if (!data) return;
+  editingUser = username; isAddMode = false;
+  document.getElementById("modalTitle").textContent = "✏️ Edit: " + username;
+  document.getElementById("editUsername").value = username;
+  document.getElementById("editUsername").disabled = true;
+  document.getElementById("editPassword").value = data.password || "";
+  document.getElementById("editExpiry").value = data.expiry || "";
+  document.getElementById("editSisaHari").value = hitungSisaHari(data.expiry);
+  document.getElementById("editMaxDevices").value = data.max_devices ?? 1;
+  document.getElementById("editStatus").value = data.status || "active";
+  showHwidList(username, data);
+  document.getElementById("editModal").classList.add("show");
+}
+
+function showHwidList(username, data) {
+  const group = document.getElementById("hwidGroup");
+  const list = document.getElementById("hwidList");
+  const hwids = Object.keys(data.hwids || {});
+  group.style.display = "block";
+  if (hwids.length === 0) { list.innerHTML = '<div style="color:var(--text-mute);font-size:11px">Belum ada device</div>'; return; }
+  list.innerHTML = hwids.map(h => `
+    <div class="hwid-item">
+      <span>${escapeHtml(h)}</span>
+      <button style="background:var(--accent);" onclick="copyHwid('${escapeAttr(h)}')">📋</button>
+      <button style="background:#ef4444;" onclick="removeHwid('${escapeAttr(username)}','${escapeAttr(h)}')">🗑️</button>
+    </div>`).join("");
+}
+
+function copyHwid(hwid) {
+  navigator.clipboard.writeText(hwid).then(() => toast("📋 HWID dicopy!", "success")).catch(() => toast("❌ Gagal copy", "error"));
+}
+
+function openAddModal() {
+  editingUser = null; isAddMode = true;
+  document.getElementById("modalTitle").textContent = "➕ Tambah User";
+  document.getElementById("editUsername").value = "";
+  document.getElementById("editUsername").disabled = false;
+  document.getElementById("editPassword").value = "";
+  document.getElementById("editExpiry").value = "";
+  document.getElementById("editSisaHari").value = 0;
+  document.getElementById("editMaxDevices").value = 1;
+  document.getElementById("editStatus").value = "active";
+  document.getElementById("hwidGroup").style.display = "none";
+  document.getElementById("editModal").classList.add("show");
+}
+
+function closeEditModal() {
+  document.getElementById("editModal").classList.remove("show");
+  editingUser = null; isAddMode = false;
+}
+
+async function saveUser() {
+  const username = document.getElementById("editUsername").value.trim();
+  if (!username) { toast("❌ Username wajib!", "error"); return; }
+  if (isAddMode && usersCache[username]) { toast("❌ Username sudah ada!", "error"); return; }
+
+  const body = {
+    username,
+    password: document.getElementById("editPassword").value,
+    expiry: document.getElementById("editExpiry").value,
+    status: document.getElementById("editStatus").value
+  };
+  try {
+    const res = await apiFetch(`${API_BASE}/users`, { method: "POST", body: JSON.stringify(body) });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.message);
+    toast(isAddMode ? "✅ User ditambah!" : "✅ User diupdate!", "success");
+    addLog("edit", `${isAddMode ? "Tambah" : "Edit"} user: ${username}`);
+    closeEditModal(); loadUsers();
+  } catch (e) { toast("❌ " + e.message, "error"); }
+}
+
+async function toggleLock(username) {
+  const data = usersCache[username];
+  const newStatus = data.status === "active" ? "locked" : "active";
+  try {
+    const res = await apiFetch(`${API_BASE}/users`, { method: "POST", body: JSON.stringify({ ...data, username, status: newStatus }) });
+    const result = await res.json();
+    if (!result.success) throw new Error(result.message);
+    toast(newStatus === "active" ? "🔓 User di-unlock!" : "🔒 User di-lock!", "success");
+    addLog("lock", `${newStatus === "active" ? "Unlock" : "Lock"} user: ${username}`);
+    loadUsers();
+  } catch (e) { toast("❌ " + e.message, "error"); }
+}
+
+async function resetDevice(username) {
+  if (!confirm(`Reset semua device untuk "${username}"?`)) return;
+  try {
+    const res = await apiFetch(`${API_BASE}/users?action=reset-hwid&username=${encodeURIComponent(username)}`, { method: "POST" });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.message);
+    toast("🔄 Device direset!", "success");
+    addLog("edit", `Reset device: ${username}`);
+    loadUsers();
+  } catch (e) { toast("❌ " + e.message, "error"); }
+}
+
+async function removeHwid(username, hwid) {
+  try {
+    const res = await apiFetch(`${API_BASE}/users`, { method: "POST", body: JSON.stringify({ username, action: "remove-hwid", hwid }) });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.message);
+    toast("🗑️ Device dihapus!", "success");
+    loadUsers();
+    setTimeout(() => openEditModal(username), 500);
+  } catch (e) { toast("❌ " + e.message, "error"); }
+}
+
+async function deleteUser(username) {
+  if (!confirm(`Yakin hapus user "${username}"?`)) return;
+  try {
+    const res = await apiFetch(`${API_BASE}/users?username=${encodeURIComponent(username)}`, { method: "DELETE" });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.message);
+    toast("🗑️ User dihapus!", "success");
+    addLog("delete", `Hapus user: ${username}`);
+    loadUsers();
+  } catch (e) { toast("❌ " + e.message, "error"); }
+}
+
+async function autoPerpanjang() {
+  if (!confirm("Auto perpanjang SEMUA user active +30 hari?")) return;
+  try {
+    const res = await apiFetch(`${API_BASE}/users`, { method: "POST", body: JSON.stringify({ action: "auto-extend", days: 30 }) });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.message);
+    toast(`⏰ ${data.count} user diperpanjang +30 hari`, "success");
+    addLog("edit", `Auto perpanjang ${data.count} user`);
+    loadUsers();
+  } catch (e) { toast("❌ " + e.message, "error"); }
+}
+
+function downloadBackup() {
+  const data = { export_date: new Date().toISOString(), total_users: Object.keys(usersCache).length, users: usersCache, config: configCache };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = `backup_token_${new Date().toISOString().slice(0, 10)}.json`;
+  a.click(); URL.revokeObjectURL(url);
+  toast("💾 Backup didownload!", "success");
+  addLog("edit", `Download backup (${data.total_users} user)`);
+}
+
+function openMsgModal(username) {
+  msgTargetUser = username;
+  document.getElementById("msgModalUser").textContent = username;
+  document.getElementById("mMsgContent").value = "";
+  document.getElementById("mMsgType").value = "maintenance";
+  document.getElementById("msgModal").classList.add("show");
+}
+function closeMsgModal() { document.getElementById("msgModal").classList.remove("show"); msgTargetUser = null; }
+
+async function sendMsgToUser() {
+  const content = document.getElementById("mMsgContent").value.trim();
+  if (!content) { toast("❌ Pesan kosong!", "error"); return; }
+  try {
+    const res = await apiFetch(`${API_BASE}/message`, { method: "POST", body: JSON.stringify({ target: msgTargetUser, type: document.getElementById("mMsgType").value, content }) });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.message);
+    toast("📤 Pesan terkirim!", "success");
+    addLog("edit", `Kirim pesan ke ${msgTargetUser}`);
+    closeMsgModal(); loadMessages();
+  } catch (e) { toast("❌ " + e.message, "error"); }
+}
+
+function updateMsgTarget() {
+  const target = document.getElementById("msgTarget").value;
+  document.getElementById("targetUserGroup").style.display = target === "one" ? "block" : "none";
+}
+
+async function sendBroadcast() {
+  const target = document.getElementById("msgTarget").value;
+  const content = document.getElementById("msgContent").value.trim();
+  const type = document.getElementById("msgType").value;
+  if (!content) { toast("❌ Pesan kosong!", "error"); return; }
+  let finalTarget = "all";
+  if (target === "one") {
+    finalTarget = document.getElementById("targetUser").value;
+    if (!finalTarget) { toast("❌ Pilih user dulu!", "error"); return; }
+  }
+  try {
+    const res = await apiFetch(`${API_BASE}/message`, { method: "POST", body: JSON.stringify({ target: finalTarget, type, content }) });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.message);
+    toast(finalTarget === "all" ? "📢 Terkirim ke SEMUA!" : "📤 Terkirim!", "success");
+    addLog("edit", `Broadcast: ${finalTarget}`);
+    document.getElementById("msgContent").value = "";
+    loadMessages();
+  } catch (e) { toast("❌ " + e.message, "error"); }
+}
+
+async function loadMessages() {
+  try {
+    const res = await apiFetch(`${API_BASE}/message?action=list`);
+    const data = await res.json();
+    if (!data.success) throw new Error(data.message);
+    messagesCache = data.messages || [];
+    const c = document.getElementById("msgHistory");
+    if (messagesCache.length === 0) { c.innerHTML = '<div class="empty">Belum ada pesan</div>'; return; }
+    c.innerHTML = messagesCache.slice().reverse().map(m => {
+      const time = new Date(m.timestamp).toLocaleString("id-ID");
+      const target = m.target === "all" ? "🌐 Semua" : `👤 ${escapeHtml(m.target)}`;
+      const ic = { maintenance: "🔧", info: "ℹ️", warning: "⚠️", update: "🔄" }[m.type] || "📩";
+      return `<div class="log-item">
+        <div class="log-head"><span>${ic} <b>${target}</b></span><span style="color:var(--text-mute);font-size:10px">${time}</span></div>
+        <div style="color:var(--text-dim)">${escapeHtml(m.content)}</div>
+        <div style="margin-top:6px;text-align:right"><button onclick="deleteMsg('${escapeAttr(m.id)}')" style="background:#ef4444;color:#fff;border:none;border-radius:4px;padding:3px 8px;font-size:10px;cursor:pointer;">Hapus</button></div>
+      </div>`;
+    }).join("");
+  } catch (e) { console.error(e); }
+}
+
+async function deleteMsg(id) {
+  if (!confirm("Hapus pesan ini?")) return;
+  try {
+    const res = await apiFetch(`${API_BASE}/message?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.message);
+    toast("🗑️ Pesan dihapus!", "success");
+    loadMessages();
+  } catch (e) { toast("❌ " + e.message, "error"); }
+}
+
+function addLog(type, message) {
+  const logs = JSON.parse(localStorage.getItem("admin_logs") || "[]");
+  logs.push({ type, message, timestamp: new Date().toISOString() });
+  if (logs.length > 200) logs.splice(0, logs.length - 200);
+  localStorage.setItem("admin_logs", JSON.stringify(logs));
+  if (document.getElementById("tab-logs").style.display !== "none") loadLogs();
+}
+function loadLogs() {
+  logsCache = JSON.parse(localStorage.getItem("admin_logs") || "[]").reverse();
+  document.getElementById("logCount").textContent = logsCache.length;
+  renderLogs();
+}
+function filterLogs(type) { currentLogFilter = type; renderLogs(); }
+function renderLogs() {
+  const c = document.getElementById("logList");
+  let logs = logsCache;
+  if (currentLogFilter !== "all") logs = logs.filter(l => l.type === currentLogFilter);
+  if (logs.length === 0) { c.innerHTML = '<div class="empty">Belum ada log</div>'; return; }
+  const icons = { login: "🔐", edit: "✏️", lock: "🔒", delete: "🗑️" };
+  c.innerHTML = logs.map(l => {
+    const t = new Date(l.timestamp).toLocaleString("id-ID");
+    return `<div class="log-item"><div class="log-head"><span>${icons[l.type] || "📝"} <b>${l.type.toUpperCase()}</b></span><span style="color:var(--text-mute);font-size:10px">${t}</span></div><div style="color:var(--text-dim)">${escapeHtml(l.message)}</div></div>`;
+  }).join("");
+}
+
+async function loadAdmins() {
+  try {
+    const res = await apiFetch(`${API_BASE}/users?action=admins`);
+    const data = await res.json();
+    if (!data.success) { adminsCache = []; return renderAdmins(); }
+    adminsCache = data.admins || [];
+    document.getElementById("adminCount").textContent = adminsCache.length;
+    renderAdmins();
+  } catch (e) { adminsCache = []; renderAdmins(); }
+}
+function renderAdmins() {
+  const c = document.getElementById("adminList");
+  if (adminsCache.length === 0) { c.innerHTML = '<div class="empty">Belum ada admin</div>'; return; }
+  c.innerHTML = adminsCache.map(a => `
+    <div class="log-item" style="display:flex;justify-content:space-between;align-items:center;">
+      <div><b>👑 ${escapeHtml(a.username)}</b><div style="font-size:11px;color:var(--text-dim);">${escapeHtml(a.role || "admin")}</div></div>
+      ${a.role !== "owner" ? `<button onclick="removeAdmin('${escapeAttr(a.username)}')" style="background:#ef4444;color:#fff;border:none;border-radius:4px;padding:4px 10px;font-size:11px;cursor:pointer;">Hapus</button>` : ""}
+    </div>`).join("");
+}
+async function addAdmin() {
+  const username = document.getElementById("newAdminEmail").value.trim();
+  const password = document.getElementById("newAdminPass").value;
+  if (!username || !password) { toast("❌ Isi email & password!", "error"); return; }
+  try {
+    const res = await apiFetch(`${API_BASE}/users`, { method: "POST", body: JSON.stringify({ action: "add-admin", username, password }) });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.message);
+    toast("✅ Admin ditambah!", "success");
+    addLog("edit", `Tambah admin: ${username}`);
+    document.getElementById("newAdminEmail").value = "";
+    document.getElementById("newAdminPass").value = "";
+    loadAdmins();
+  } catch (e) { toast("❌ " + e.message, "error"); }
+}
+async function removeAdmin(username) {
+  if (!confirm(`Hapus admin "${username}"?`)) return;
+  try {
+    const res = await apiFetch(`${API_BASE}/users`, { method: "POST", body: JSON.stringify({ action: "remove-admin", username }) });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.message);
+    toast("🗑️ Admin dihapus!", "success");
+    loadAdmins();
+  } catch (e) { toast("❌ " + e.message, "error"); }
+}
+
+async function loadConfig() {
+  try {
+    const res = await apiFetch(`${API_BASE}/users?action=config`);
+    const data = await res.json();
+    if (!data.success) return;
+    configCache = data.config || {};
+    document.getElementById("cfgAdminUrl").value = configCache.admin_url || "";
+    document.getElementById("cfgAppName").value = configCache.app_name || "";
+    document.getElementById("cfgVersion").value = configCache.version || "";
+    document.getElementById("cfgMaintenanceMsg").value = configCache.maintenance_msg || "";
+    document.getElementById("cfgMaintenance").value = configCache.maintenance ? "true" : "false";
+    document.getElementById("cfgAutoExtend").value = configCache.auto_extend || 0;
+    document.getElementById("previewUrl").value = configCache.preview_url || "";
+    updatePreview();
+  } catch (e) { console.error(e); }
+}
+async function saveConfig() {
+  const body = {
+    action: "save-config",
+    admin_url: document.getElementById("cfgAdminUrl").value,
+    app_name: document.getElementById("cfgAppName").value,
+    version: document.getElementById("cfgVersion").value,
+    maintenance_msg: document.getElementById("cfgMaintenanceMsg").value,
+    maintenance: document.getElementById("cfgMaintenance").value === "true",
+    auto_extend: parseInt(document.getElementById("cfgAutoExtend").value) || 0,
+    preview_url: document.getElementById("previewUrl").value
+  };
+  try {
+    const res = await apiFetch(`${API_BASE}/users`, { method: "POST", body: JSON.stringify(body) });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.message);
+    toast("✅ Config disimpan!", "success");
+    addLog("edit", "Update config");
+  } catch (e) { toast("❌ " + e.message, "error"); }
+}
+function updatePreview() {
+  const url = document.getElementById("previewUrl").value.trim();
+  const iframe = document.getElementById("previewIframe");
+  if (url) iframe.src = url; else iframe.src = "about:blank";
+}
+
+function escapeHtml(str) {
+  if (typeof str !== "string") str = String(str ?? "");
+  return str.replace(/[&<>"']/g, m => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" })[m]);
+}
+function escapeAttr(str) {
+  if (typeof str !== "string") str = String(str ?? "");
+  return str.replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/"/g, "&quot;");
+}
+
+// Realtime update sisa hari saat tanggal diketik
+document.addEventListener("DOMContentLoaded", () => {
+  const expiryInput = document.getElementById("editExpiry");
+  if (expiryInput) {
+    expiryInput.addEventListener("input", () => {
+      document.getElementById("editSisaHari").value = hitungSisaHari(expiryInput.value);
+    });
+  }
+});
+
+// Auto login dengan validasi token
+(async function autoLogin() {
+  if (!token) return;
+  try {
+    const res = await fetch(`${API_BASE}/users?action=list`, {
+      headers: { "Authorization": "Bearer " + token }
+    });
+    if (res.status === 401) {
+      token = "";
+      localStorage.removeItem("admin_token");
+      document.getElementById("loginPage").style.display = "flex";
+      document.getElementById("dashboardPage").style.display = "none";
+      return;
+    }
+    showDashboard("admin");
+  } catch (e) {
+    token = "";
+    localStorage.removeItem("admin_token");
+    document.getElementById("loginPage").style.display = "flex";
+    document.getElementById("dashboardPage").style.display = "none";
+  }
+})();
+</script>
+</body>
+</html>
