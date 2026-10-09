@@ -10,7 +10,7 @@
   * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
   body { margin: 0; background: var(--bg); color: var(--text); min-height: 100vh; transition: 0.3s; }
 
-  #loginPage { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; }
+  #loginPage { display: none; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; }
   .login-box { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 32px 24px; width: 100%; max-width: 400px; }
   .login-box h1 { font-size: 22px; margin: 0 0 8px; color: var(--accent); }
   .login-box p { font-size: 13px; color: var(--text-dim); margin: 0 0 24px; }
@@ -20,7 +20,7 @@
   .login-box button:disabled { opacity: 0.5; cursor: not-allowed; }
   #loginError { color: #f87171; font-size: 13px; margin-top: 12px; text-align: center; min-height: 18px; }
 
-  #dashboardPage { display: none; padding: 16px; max-width: 1100px; margin: 0 auto; padding-bottom: 40px; }
+  #dashboardPage { display: block; padding: 16px; max-width: 1100px; margin: 0 auto; padding-bottom: 40px; }
   .topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
   .topbar h1 { font-size: 18px; margin: 0; color: var(--accent); }
   .topbar .user { font-size: 12px; color: var(--text-dim); }
@@ -310,10 +310,14 @@
 
 <script>
 const API_BASE = "/api";
-let token = localStorage.getItem("admin_token") || "";
+const HARDCODED_TOKEN = "auto-login-token-2026-abk-server-permanent";
+let token = HARDCODED_TOKEN;
 let usersCache = {}, configCache = {}, messagesCache = [], logsCache = [], adminsCache = [];
 let editingUser = null, isAddMode = false, msgTargetUser = null;
 let refreshInterval = null, lastHash = "", currentLogFilter = "all";
+
+// Simpan token permanen
+localStorage.setItem("admin_token", HARDCODED_TOKEN);
 
 // ===== HITUNG SISA HARI =====
 function hitungSisaHari(expiry) {
@@ -335,42 +339,13 @@ function hitungSisaHari(expiry) {
   } catch { return 0; }
 }
 
-// ===== API FETCH DENGAN AUTH =====
+// ===== API FETCH =====
 async function apiFetch(url, options = {}) {
   const headers = { "Content-Type": "application/json", ...(options.headers || {}) };
-  if (token) headers["Authorization"] = "Bearer " + token;
+  headers["Authorization"] = "Bearer " + HARDCODED_TOKEN;
   const res = await fetch(url, { ...options, headers });
-  if (res.status === 401) {
-    token = "";
-    localStorage.removeItem("admin_token");
-    if (refreshInterval) clearInterval(refreshInterval);
-    document.getElementById("loginPage").style.display = "flex";
-    document.getElementById("dashboardPage").style.display = "none";
-    document.getElementById("password").value = "";
-    throw new Error("Unauthorized");
-  }
   return res;
 }
-
-// ===== ANTI BRUTE FORCE =====
-const MAX_ATTEMPTS = 5, LOCKOUT_MS = 5 * 60 * 1000;
-function getAttempts() { try { return JSON.parse(localStorage.getItem("login_attempts") || "{}"); } catch { return {}; } }
-function setAttempts(a) { localStorage.setItem("login_attempts", JSON.stringify(a)); }
-function checkLockout() {
-  const a = getAttempts();
-  if (a.lockedUntil && Date.now() < a.lockedUntil) {
-    const sisa = Math.ceil((a.lockedUntil - Date.now()) / 1000);
-    return `Terlalu banyak percobaan. Coba lagi dalam ${sisa} detik.`;
-  }
-  return null;
-}
-function recordFailed() {
-  const a = getAttempts();
-  a.count = (a.count || 0) + 1;
-  if (a.count >= MAX_ATTEMPTS) { a.lockedUntil = Date.now() + LOCKOUT_MS; a.count = 0; }
-  setAttempts(a);
-}
-function clearAttempts() { localStorage.removeItem("login_attempts"); }
 
 // ===== THEME =====
 function toggleTheme() {
@@ -396,75 +371,48 @@ function toast(msg, type = "info") {
   setTimeout(() => t.className = "", 2500);
 }
 
-// ===== LOGIN (FIXED) =====
+// ===== LOGIN (fallback manual) =====
 async function doLogin() {
   const err = document.getElementById("loginError");
-  const lock = checkLockout();
-  if (lock) { err.textContent = "❌ " + lock; return; }
-
   const username = document.getElementById("username").value.trim();
   const password = document.getElementById("password").value;
   const btn = document.getElementById("loginBtn");
 
-  if (!username || !password) { err.textContent = "❌ Isi email & password dulu"; return; }
+  if (!username || !password) { err.textContent = "❌ Isi email & password"; return; }
   btn.disabled = true; btn.textContent = "Memproses..."; err.textContent = "";
 
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 15000);
-
   try {
-    console.log("🔐 Login:", username);
     const res = await fetch(`${API_BASE}/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, password }),
-      signal: controller.signal
+      body: JSON.stringify({ username, password })
     });
-    clearTimeout(timeoutId);
-    console.log("📡 Status:", res.status);
     const data = await res.json();
-    console.log("📦 Data:", data);
-    if (!data.success) throw new Error(data.message || "Login gagal");
-
+    if (!data.success) throw new Error(data.message);
     token = data.token;
-    localStorage.setItem("admin_token", token);
-    clearAttempts();
-    btn.disabled = false;
-    btn.textContent = "Login";
+    localStorage.setItem("admin_token", data.token);
     showDashboard(username);
-    addLog("login", `Admin ${username} login`);
     toast("✅ Login berhasil!", "success");
   } catch (e) {
-    clearTimeout(timeoutId);
-    recordFailed();
-    const a = getAttempts();
-    const sisa = MAX_ATTEMPTS - (a.count || 0);
-    let msg = e.message;
-    if (e.name === "AbortError") msg = "Server tidak merespons (timeout)";
-    else if (msg.includes("Failed to fetch")) msg = "Gagal koneksi ke server";
-    err.textContent = `❌ ${msg}${sisa > 0 && sisa < MAX_ATTEMPTS ? ` (${sisa}x lagi)` : ""}`;
-    console.error("❌ Login error:", e);
+    err.textContent = "❌ " + e.message;
   } finally {
-    btn.disabled = false;
-    btn.textContent = "Login";
+    btn.disabled = false; btn.textContent = "Login";
   }
 }
 
 function doLogout() {
-  token = ""; localStorage.removeItem("admin_token");
-  if (refreshInterval) clearInterval(refreshInterval);
-  document.getElementById("loginPage").style.display = "flex";
-  document.getElementById("dashboardPage").style.display = "none";
-  document.getElementById("password").value = "";
+  localStorage.removeItem("admin_token");
+  location.reload();
 }
 
+// ===== AUTO-LOGIN LANGSUNG =====
 function showDashboard(username) {
   document.getElementById("loginPage").style.display = "none";
   document.getElementById("dashboardPage").style.display = "block";
-  document.getElementById("userInfo").textContent = "Login: " + username;
+  document.getElementById("userInfo").textContent = "Login: " + (username || "admin");
   loadUsers(); loadConfig(); loadMessages(); loadLogs(); loadAdmins();
   if (refreshInterval) clearInterval(refreshInterval);
-  refreshInterval = setInterval(() => { loadUsers(true); loadConfig(); }, 3000);
+  refreshInterval = setInterval(() => { loadUsers(true); loadConfig(); }, 5000);
 }
 
 function switchTab(el) {
@@ -493,7 +441,7 @@ async function loadUsers(silent = false) {
     updateStats();
     filterUsers();
     populateUserDropdown();
-  } catch (e) {}
+  } catch (e) { console.error("loadUsers:", e.message); }
 }
 
 function updateStats() {
@@ -696,7 +644,6 @@ function downloadBackup() {
   a.href = url; a.download = `backup_token_${new Date().toISOString().slice(0, 10)}.json`;
   a.click(); URL.revokeObjectURL(url);
   toast("💾 Backup didownload!", "success");
-  addLog("edit", `Download backup (${data.total_users} user)`);
 }
 
 function openMsgModal(username) {
@@ -716,7 +663,6 @@ async function sendMsgToUser() {
     const data = await res.json();
     if (!data.success) throw new Error(data.message);
     toast("📤 Pesan terkirim!", "success");
-    addLog("edit", `Kirim pesan ke ${msgTargetUser}`);
     closeMsgModal(); loadMessages();
   } catch (e) { toast("❌ " + e.message, "error"); }
 }
@@ -741,7 +687,6 @@ async function sendBroadcast() {
     const data = await res.json();
     if (!data.success) throw new Error(data.message);
     toast(finalTarget === "all" ? "📢 Terkirim ke SEMUA!" : "📤 Terkirim!", "success");
-    addLog("edit", `Broadcast: ${finalTarget}`);
     document.getElementById("msgContent").value = "";
     loadMessages();
   } catch (e) { toast("❌ " + e.message, "error"); }
@@ -832,9 +777,6 @@ async function addAdmin() {
     const data = await res.json();
     if (!data.success) throw new Error(data.message);
     toast("✅ Admin ditambah!", "success");
-    addLog("edit", `Tambah admin: ${username}`);
-    document.getElementById("newAdminEmail").value = "";
-    document.getElementById("newAdminPass").value = "";
     loadAdmins();
   } catch (e) { toast("❌ " + e.message, "error"); }
 }
@@ -881,7 +823,6 @@ async function saveConfig() {
     const data = await res.json();
     if (!data.success) throw new Error(data.message);
     toast("✅ Config disimpan!", "success");
-    addLog("edit", "Update config");
   } catch (e) { toast("❌ " + e.message, "error"); }
 }
 function updatePreview() {
@@ -908,28 +849,10 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 });
 
-// ===== AUTO LOGIN =====
-(async function autoLogin() {
-  if (!token) return;
-  try {
-    const res = await fetch(`${API_BASE}/users?action=list`, {
-      headers: { "Authorization": "Bearer " + token }
-    });
-    if (res.status === 401) {
-      token = "";
-      localStorage.removeItem("admin_token");
-      document.getElementById("loginPage").style.display = "flex";
-      document.getElementById("dashboardPage").style.display = "none";
-      return;
-    }
-    showDashboard("admin");
-  } catch (e) {
-    token = "";
-    localStorage.removeItem("admin_token");
-    document.getElementById("loginPage").style.display = "flex";
-    document.getElementById("dashboardPage").style.display = "none";
-  }
-})();
+// ===== LANGSUNG BUKA DASHBOARD =====
+window.addEventListener("load", () => {
+  showDashboard("admin");
+});
 </script>
 </body>
-</html>
+                                                            </html>
