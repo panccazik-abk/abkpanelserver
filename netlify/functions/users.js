@@ -96,6 +96,7 @@ export default async (req, context) => {
     if (method === "POST") {
       const body = await req.json();
 
+      // ===== SAVE CONFIG =====
       if (body.action === "save-config") {
         await store.setJSON("config", {
           admin_url: body.admin_url || "",
@@ -110,6 +111,7 @@ export default async (req, context) => {
         return new Response(JSON.stringify({ success: true, message: "Config disimpan" }), { status: 200, headers });
       }
 
+      // ===== REMOVE HWID =====
       if (body.action === "remove-hwid") {
         const users = await store.get("users", { type: "json" }) || {};
         if (!users[body.username]) throw new Error("User tidak ditemukan");
@@ -118,6 +120,42 @@ export default async (req, context) => {
         return new Response(JSON.stringify({ success: true, message: "Device dihapus" }), { status: 200, headers });
       }
 
+      // ===== ADD HWID MANUAL =====
+      if (body.action === "add-hwid-manual") {
+        const users = await store.get("users", { type: "json" }) || {};
+        if (!users[body.username]) throw new Error("User tidak ditemukan");
+        if (!body.hwid || body.hwid.trim() === "") throw new Error("HWID kosong");
+
+        // Init hwids object
+        if (!users[body.username].hwids) users[body.username].hwids = {};
+
+        const cleanHwid = body.hwid.trim();
+
+        // Cek apakah HWID sudah ada
+        if (users[body.username].hwids[cleanHwid]) {
+          throw new Error("HWID sudah terdaftar untuk user ini");
+        }
+
+        // Cek limit max_devices (default 1)
+        const currentHwids = Object.keys(users[body.username].hwids).length;
+        const maxDevices = users[body.username].max_devices || 1;
+        if (currentHwids >= maxDevices) {
+          throw new Error(`Max device tercapai (${maxDevices}). Hapus device lama dulu atau ubah Max Devices.`);
+        }
+
+        // Tambahkan HWID
+        users[body.username].hwids[cleanHwid] = true;
+        users[body.username].last_update = new Date().toISOString();
+
+        await store.setJSON("users", users);
+        return new Response(JSON.stringify({
+          success: true,
+          message: "HWID berhasil ditambahkan",
+          hwid: cleanHwid
+        }), { status: 200, headers });
+      }
+
+      // ===== ADD ADMIN =====
       if (body.action === "add-admin") {
         let admins = await store.get("admins", { type: "json" }) || [{ username: "panccazik@gmail.com", role: "owner" }];
         if (!body.username || !body.password) throw new Error("Email & password wajib diisi");
@@ -127,6 +165,7 @@ export default async (req, context) => {
         return new Response(JSON.stringify({ success: true, message: "Admin ditambah" }), { status: 200, headers });
       }
 
+      // ===== REMOVE ADMIN =====
       if (body.action === "remove-admin") {
         let admins = await store.get("admins", { type: "json" }) || [];
         admins = admins.filter(a => a.username !== body.username);
@@ -134,6 +173,7 @@ export default async (req, context) => {
         return new Response(JSON.stringify({ success: true, message: "Admin dihapus" }), { status: 200, headers });
       }
 
+      // ===== AUTO EXTEND =====
       if (body.action === "auto-extend") {
         const users = await store.get("users", { type: "json" }) || {};
         const days = parseInt(body.days) || 30;
@@ -160,7 +200,8 @@ export default async (req, context) => {
         return new Response(JSON.stringify({ success: true, message: `${count} user diperpanjang +${days} hari`, count }), { status: 200, headers });
       }
 
-      const { username, password, expiry, status, note } = body;
+      // ===== SAVE USER (Tambah / Edit) =====
+      const { username, password, expiry, status, note, max_devices } = body;
       if (!username) throw new Error("Username wajib diisi");
 
       const users = await store.get("users", { type: "json" }) || {};
@@ -171,11 +212,13 @@ export default async (req, context) => {
         finalStatus = sisaOtomatis > 0 ? "active" : "expired";
       }
 
+      const finalMaxDevices = parseInt(max_devices) || 1;
+
       users[username] = {
         password: password || username,
         expiry: expiry || "",
         sisa_hari: sisaOtomatis,
-        max_devices: 1,
+        max_devices: finalMaxDevices,
         status: finalStatus,
         note: note || "",
         hwids: users[username]?.hwids || {},
