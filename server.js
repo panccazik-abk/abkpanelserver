@@ -1,0 +1,13 @@
+{
+  "name": "abkpanelserver",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@netlify/blobs": "^8.1.0",
+    "express": "^4.18.2"
+  }
+    }
