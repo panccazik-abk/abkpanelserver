@@ -4,10 +4,16 @@ const app = express();
 app.use(express.json());
 app.use(express.static("."));
 
-// ===== IN-MEMORY STORE (data hilang saat restart) =====
-const store = {};
+// ===== IN-MEMORY STORE =====
+const store = {
+  users: {},
+  admins: [{ username: "panccazik@gmail.com", role: "owner" }],
+  messages: [],
+  config: {},
+  tokens: {} // Token tracking
+};
 
-// ===== HELPER =====
+// ===== HELPER: HITUNG SISA HARI =====
 function hitungSisaHari(expiry) {
   if (!expiry) return 0;
   try {
@@ -37,6 +43,23 @@ function autoUpdateStatus(user) {
   return user;
 }
 
+// ===== HELPER: GENERATE TOKEN =====
+function generateToken(username) {
+  return Buffer.from(username + ":" + Date.now() + ":" + Math.random()).toString("base64");
+}
+
+// ===== HELPER: VALIDASI TOKEN =====
+function validateToken(token) {
+  if (!token) return { valid: false, message: "Token kosong" };
+  const data = store.tokens[token];
+  if (!data) return { valid: false, message: "Token tidak valid" };
+  if (data.expired_at < Date.now()) {
+    delete store.tokens[token];
+    return { valid: false, message: "Token Expired, login ulang" };
+  }
+  return { valid: true, data };
+}
+
 // ===== API: LOGIN ADMIN =====
 app.post("/api/login", async (req, res) => {
   const { username, password } = req.body;
@@ -54,24 +77,76 @@ app.post("/api/login", async (req, res) => {
     return res.status(401).json({ success: false, message: "Email atau password salah" });
   }
 
-  const token = Buffer.from(username + ":" + Date.now()).toString("base64");
+  const token = generateToken(username);
+  store.tokens[token] = {
+    username,
+    role: "admin",
+    created_at: Date.now(),
+    expired_at: Date.now() + (7 * 24 * 60 * 60 * 1000) // 7 hari
+  };
+
   res.json({ success: true, token, username });
+});
+
+// ===== API: REFRESH TOKEN =====
+app.post("/api/refresh-token", async (req, res) => {
+  const { username, password } = req.body;
+  const users = store.users || {};
+  const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "panccazik@gmail.com";
+  const ADMIN_PASS = process.env.ADMIN_PASS || "Menteng10310";
+
+  // Cek admin dulu
+  if (username === ADMIN_EMAIL && password === ADMIN_PASS) {
+    const newToken = generateToken(username);
+    store.tokens[newToken] = {
+      username,
+      role: "admin",
+      created_at: Date.now(),
+      expired_at: Date.now() + (7 * 24 * 60 * 60 * 1000)
+    };
+    return res.json({ valid: true, token: newToken, role: "admin" });
+  }
+
+  // Cek user biasa
+  const user = users[username];
+  if (!user || user.password !== password) {
+    return res.status(401).json({ valid: false, message: "Kredensial salah" });
+  }
+
+  const newToken = generateToken(username);
+  store.tokens[newToken] = {
+    username,
+    role: "user",
+    created_at: Date.now(),
+    expired_at: Date.now() + (7 * 24 * 60 * 60 * 1000)
+  };
+
+  res.json({ valid: true, token: newToken, role: "user" });
 });
 
 // ===== API: VALIDATE (untuk APK user) =====
 app.post("/api/validate", async (req, res) => {
   try {
-    const { username, password, hwid } = req.body;
+    const { username, password, hwid, token } = req.body;
     const users = store.users || {};
     const config = store.config || {};
     const messages = store.messages || [];
 
+    // Cek maintenance
     if (config.maintenance === true) {
       return res.json({
         valid: false,
         maintenance: true,
         message: config.maintenance_msg || "Server sedang maintenance"
       });
+    }
+
+    // Validasi token kalau ada
+    if (token) {
+      const tokenCheck = validateToken(token);
+      if (!tokenCheck.valid) {
+        return res.json({ valid: false, message: tokenCheck.message });
+      }
     }
 
     const user = users[username];
@@ -92,23 +167,35 @@ app.post("/api/validate", async (req, res) => {
     const hwidList = Object.keys(user.hwids).filter(k => user.hwids[k]);
 
     if (!user.hwids[hwid]) {
-      if (hwidList.length >= 1) {
+      if (hwidList.length >= (user.max_devices || 1)) {
         return res.json({ valid: false, message: "Token sudah terdaftar di HP lain" });
       }
       users[username].hwids[hwid] = true;
       store.users = users;
     }
 
+    // Generate token baru untuk session ini
+    const newToken = generateToken(username);
+    store.tokens[newToken] = {
+      username,
+      hwid,
+      role: "user",
+      created_at: Date.now(),
+      expired_at: Date.now() + (7 * 24 * 60 * 60 * 1000)
+    };
+
     const userMessages = messages.filter(m => m.target === "all" || m.target === username).slice(-5);
 
     res.json({
       valid: true,
       message: "Login berhasil",
+      token: newToken,
+      expired_at: store.tokens[newToken].expired_at,
       user: {
         username,
         expiry: user.expiry,
         sisa_hari: sisaRealtime,
-        max_devices: 1,
+        max_devices: user.max_devices || 1,
         note: user.note || ""
       },
       messages: userMessages,
@@ -133,20 +220,20 @@ app.get("/api/users", async (req, res) => {
 
   if (action === "list") {
     let users = store.users || {};
-    let changed = false;
     for (const username of Object.keys(users)) {
-      const before = JSON.stringify({ s: users[username].status, h: users[username].sisa_hari });
       users[username] = autoUpdateStatus(users[username]);
-      const after = JSON.stringify({ s: users[username].status, h: users[username].sisa_hari });
-      if (before !== after) changed = true;
     }
-    if (changed) store.users = users;
+    store.users = users;
     return res.json({ success: true, users });
   }
 
   if (action === "admins") {
     const admins = store.admins || [{ username: "panccazik@gmail.com", role: "owner" }];
     return res.json({ success: true, admins });
+  }
+
+  if (action === "tokens") {
+    return res.json({ success: true, tokens: store.tokens || {} });
   }
 
   res.status(400).json({ success: false, message: "Action tidak valid" });
@@ -241,6 +328,19 @@ app.post("/api/users", async (req, res) => {
     return res.json({ success: true, message: `${count} user diperpanjang`, count });
   }
 
+  if (body.action === "revoke-token") {
+    const { token } = body;
+    if (store.tokens[token]) {
+      delete store.tokens[token];
+    }
+    return res.json({ success: true, message: "Token dicabut" });
+  }
+
+  if (body.action === "revoke-all-tokens") {
+    store.tokens = {};
+    return res.json({ success: true, message: "Semua token dicabut" });
+  }
+
   const { username, password, expiry, status, note, max_devices } = body;
   if (!username) return res.status(400).json({ success: false, message: "Username wajib" });
 
@@ -306,3 +406,5 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`✅ Server running on port ${PORT}`);
 });
+
+export default app;
