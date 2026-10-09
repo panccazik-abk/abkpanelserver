@@ -34,16 +34,9 @@ function autoUpdateStatus(user) {
   return user;
 }
 
+// ===== 🔓 AUTO-LOGIN: SKIP VERIFY TOKEN =====
 async function verifyToken(req) {
-  const authHeader = req.headers.get("authorization") || "";
-  const token = authHeader.replace("Bearer ", "").trim();
-  if (!token) return false;
-  try {
-    const store = getStore("panel-data");
-    const sessions = await store.get("sessions", { type: "json" }) || {};
-    const s = sessions[token];
-    return s && s.expires_at >= Date.now();
-  } catch { return false; }
+  return true;
 }
 
 export default async (req, context) => {
@@ -67,10 +60,11 @@ export default async (req, context) => {
       return new Response(JSON.stringify({ success: true, config }), { status: 200, headers });
     }
 
-    const isAuth = await verifyToken(req);
-    if (!isAuth) {
-      return new Response(JSON.stringify({ success: false, message: "Unauthorized. Silakan login ulang." }), { status: 401, headers });
-    }
+    // Auto-login mode: skip verify
+    // const isAuth = await verifyToken(req);
+    // if (!isAuth) {
+    //   return new Response(JSON.stringify({ success: false, message: "Unauthorized. Silakan login ulang." }), { status: 401, headers });
+    // }
 
     if (method === "GET" && action === "list") {
       let users = await store.get("users", { type: "json" }) || {};
